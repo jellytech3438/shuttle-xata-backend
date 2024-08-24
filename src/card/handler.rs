@@ -2,7 +2,7 @@ use crate::*;
 
 #[utoipa::path(
     post,
-    path = "/user/create",
+    path = "/card/create",
     request_body(
         content = FormUser,
         content_type = "application/x-www-form-urlencoded"),
@@ -10,17 +10,17 @@ use crate::*;
         (status = 200),
         (status = 400)
     ))]
-pub async fn user_create(
+pub async fn card_create(
     Extension(appstate): Extension<Arc<Mutex<AppState>>>,
-    Json(data): Json<FormUser>,
+    Json(data): Json<FormCard>,
 ) -> impl IntoResponse {
     let query_result = data.insert_into_db(&appstate.lock().await.db).await;
 
     (axum::http::StatusCode::OK, Json(query_result)).into_response()
 }
 
-pub async fn users(Extension(appstate): Extension<Arc<Mutex<AppState>>>) -> impl IntoResponse {
-    let rows = match sqlx::query("SELECT * FROM \"user\"")
+pub async fn cards(Extension(appstate): Extension<Arc<Mutex<AppState>>>) -> impl IntoResponse {
+    let rows = match sqlx::query("SELECT * FROM \"card\"")
         .fetch_all(&appstate.lock().await.db)
         .await
     {
@@ -34,7 +34,7 @@ pub async fn users(Extension(appstate): Extension<Arc<Mutex<AppState>>>) -> impl
         }
     };
 
-    let users: Vec<serde_json::Value> = rows
+    let cards: Vec<serde_json::Value> = rows
         .into_iter()
         .map(|row| {
             json!({
@@ -48,15 +48,15 @@ pub async fn users(Extension(appstate): Extension<Arc<Mutex<AppState>>>) -> impl
         })
         .collect();
 
-    (axum::http::StatusCode::OK, Json(users)).into_response()
+    (axum::http::StatusCode::OK, Json(cards)).into_response()
 }
 
-// find user by id
-pub async fn user_id(
+// find card by id
+pub async fn card_id(
     Extension(appstate): Extension<Arc<Mutex<AppState>>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    let search = format!("SELECT * FROM \"user\" where \"user\".xata_id = \'{}\'", id);
+    let search = format!("SELECT * FROM \"card\" where \"card\".xata_id = \'{}\'", id);
     let row = match sqlx::query(&search)
         .fetch_all(&appstate.lock().await.db)
         .await
@@ -71,34 +71,37 @@ pub async fn user_id(
         }
     };
 
-    let user: FormUser = match &row.get(0) {
-        &Some(sqlrow) => FormUser {
+    let card: FormCard = match &row.get(0) {
+        &Some(sqlrow) => FormCard {
             id: sqlrow.try_get::<String, _>("xata_id").unwrap_or_default(),
-            name: sqlrow.try_get::<String, _>("name").unwrap_or_default(),
-            mail: sqlrow.try_get::<String, _>("mail").unwrap_or_default(),
-            password: sqlrow.try_get::<String, _>("password").unwrap_or_default(),
+            uid: sqlrow.try_get::<String, _>("user_id").unwrap_or_default(),
+            title: sqlrow.try_get::<String, _>("title").unwrap_or_default(),
+            description: sqlrow
+                .try_get::<String, _>("description")
+                .unwrap_or_default(),
+            image: sqlrow.try_get::<String, _>("image").unwrap_or_default(),
         },
-        &None => FormUser::test_data(),
+        &None => FormCard::test_data(),
     };
 
-    println!("{:?}", Json(&user));
+    println!("{:?}", Json(&card));
 
-    (axum::http::StatusCode::OK, Json(user)).into_response()
+    (axum::http::StatusCode::OK, Json(card)).into_response()
 }
 
 #[utoipa::path(
     put,
-    path = "/user/:id",
+    path = "/card/:id",
     responses(
         (status = 200),
         (status = 400)
     ))]
-pub async fn user_update(
+pub async fn card_update(
     Extension(appstate): Extension<Arc<Mutex<AppState>>>,
     Path(id): Path<String>,
-    Json(data): Json<FormUser>,
+    Json(data): Json<FormCard>,
 ) -> impl IntoResponse {
-    let search = format!("SELECT * FROM \"user\" where \"user\".xata_id = \'{}\'", id);
+    let search = format!("SELECT * FROM \"card\" where \"card\".xata_id = \'{}\'", id);
     let row = match sqlx::query(&search)
         .fetch_all(&appstate.lock().await.db)
         .await
@@ -113,33 +116,36 @@ pub async fn user_update(
         }
     };
 
-    let user: FormUser = match &row.get(0) {
-        &Some(sqlrow) => FormUser {
+    let card: FormCard = match &row.get(0) {
+        &Some(sqlrow) => FormCard {
             id: sqlrow.try_get::<String, _>("xata_id").unwrap_or_default(),
-            name: sqlrow.try_get::<String, _>("name").unwrap_or_default(),
-            mail: sqlrow.try_get::<String, _>("mail").unwrap_or_default(),
-            password: sqlrow.try_get::<String, _>("password").unwrap_or_default(),
+            uid: sqlrow.try_get::<String, _>("user_id").unwrap_or_default(),
+            title: sqlrow.try_get::<String, _>("title").unwrap_or_default(),
+            description: sqlrow
+                .try_get::<String, _>("description")
+                .unwrap_or_default(),
+            image: sqlrow.try_get::<String, _>("image").unwrap_or_default(),
         },
-        &None => FormUser::test_data(),
+        &None => FormCard::test_data(),
     };
 
-    user.update(&appstate.lock().await.db, data).await;
+    card.update(&appstate.lock().await.db, data).await;
     // return old data as response
-    (axum::http::StatusCode::OK, Json(user)).into_response()
+    (axum::http::StatusCode::OK, Json(card)).into_response()
 }
 
 #[utoipa::path(
     delete,
-    path = "/user/:id",
+    path = "/card/:id",
     responses(
         (status = 200),
         (status = 400)
     ))]
-pub async fn user_delete(
+pub async fn card_delete(
     Extension(appstate): Extension<Arc<Mutex<AppState>>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    let search = format!("SELECT * FROM \"user\" where \"user\".xata_id = \'{}\'", id);
+    let search = format!("SELECT * FROM \"card\" where \"card\".xata_id = \'{}\'", id);
     let row = match sqlx::query(&search)
         .fetch_all(&appstate.lock().await.db)
         .await
@@ -154,17 +160,20 @@ pub async fn user_delete(
         }
     };
 
-    let user: FormUser = match &row.get(0) {
-        &Some(sqlrow) => FormUser {
+    let card: FormCard = match &row.get(0) {
+        &Some(sqlrow) => FormCard {
             id: sqlrow.try_get::<String, _>("xata_id").unwrap_or_default(),
-            name: sqlrow.try_get::<String, _>("name").unwrap_or_default(),
-            mail: sqlrow.try_get::<String, _>("mail").unwrap_or_default(),
-            password: sqlrow.try_get::<String, _>("password").unwrap_or_default(),
+            uid: sqlrow.try_get::<String, _>("user_id").unwrap_or_default(),
+            title: sqlrow.try_get::<String, _>("title").unwrap_or_default(),
+            description: sqlrow
+                .try_get::<String, _>("description")
+                .unwrap_or_default(),
+            image: sqlrow.try_get::<String, _>("image").unwrap_or_default(),
         },
-        &None => FormUser::test_data(),
+        &None => FormCard::test_data(),
     };
 
-    user.delete_from_db(&appstate.lock().await.db).await;
+    card.delete_from_db(&appstate.lock().await.db).await;
 
-    (axum::http::StatusCode::OK, Json(user)).into_response()
+    (axum::http::StatusCode::OK, Json(card)).into_response()
 }
